@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
@@ -10,18 +12,18 @@ namespace percentage
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         static extern bool DestroyIcon(IntPtr handle);
 
-        private const string iconFont = "Segoe UI";
-        private const int iconFontSize = 14;
+        private const string _iconFont = "Segoe UI";
+        private const int _iconFontSize = 28;
 
-        private string batteryPercentage;
-        private NotifyIcon notifyIcon;
+        private string _batteryPercentage;
+        private NotifyIcon _notifyIcon;
 
         public TrayIcon()
         {
             ContextMenu contextMenu = new ContextMenu();
             MenuItem menuItem = new MenuItem();
 
-            notifyIcon = new NotifyIcon();
+            _notifyIcon = new NotifyIcon();
 
             // initialize contextMenu
             contextMenu.MenuItems.AddRange(new MenuItem[] { menuItem });
@@ -31,11 +33,11 @@ namespace percentage
             menuItem.Text = "E&xit";
             menuItem.Click += new System.EventHandler(menuItem_Click);
 
-            notifyIcon.ContextMenu = contextMenu;
+            _notifyIcon.ContextMenu = contextMenu;
 
-            batteryPercentage = "?";
+            _batteryPercentage = "?";
 
-            notifyIcon.Visible = true;
+            _notifyIcon.Visible = true;
 
             Timer timer = new Timer();
             timer.Tick += new EventHandler(timer_Tick);
@@ -46,17 +48,18 @@ namespace percentage
         private void timer_Tick(object sender, EventArgs e)
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
-            batteryPercentage = (powerStatus.BatteryLifePercent * 100).ToString();
+            _batteryPercentage = $"{(int)(powerStatus.BatteryLifePercent * 100)}";
 
-            using (Bitmap bitmap = new Bitmap(DrawText(batteryPercentage, new Font(iconFont, iconFontSize), Color.White, Color.Black)))
+            using (Font font = new Font(_iconFont, _iconFontSize))
+            using (Bitmap bitmap = new Bitmap(DrawText(_batteryPercentage, font)))
             {
-                System.IntPtr intPtr = bitmap.GetHicon();
+                IntPtr intPtr = bitmap.GetHicon();
                 try
                 {
                     using (Icon icon = Icon.FromHandle(intPtr))
                     {
-                        notifyIcon.Icon = icon;
-                        notifyIcon.Text = batteryPercentage + "%";
+                        _notifyIcon.Icon = icon;
+                        _notifyIcon.Text = _batteryPercentage;
                     }
                 }
                 finally
@@ -68,27 +71,25 @@ namespace percentage
 
         private void menuItem_Click(object sender, EventArgs e)
         {
-            notifyIcon.Visible = false;
-            notifyIcon.Dispose();
+            _notifyIcon.Visible = false;
+            _notifyIcon.Dispose();
             Application.Exit();
         }
 
-        private Image DrawText(String text, Font font, Color textColor, Color backColor)
+        private Image DrawText(string text, Font font)
         {
-            var textSize = GetImageSize(text, font);
+            SizeF textSize = GetImageSize(text, font);
             Image image = new Bitmap((int) textSize.Width, (int) textSize.Height);
+            using (Brush brush = new SolidBrush(Color.White))
             using (Graphics graphics = Graphics.FromImage(image))
             {
                 // paint the background
-                graphics.Clear(backColor);
-
-                // create a brush for the text
-                using (Brush textBrush = new SolidBrush(textColor))
-                {
-                    graphics.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-                    graphics.DrawString(text, font, textBrush, 0, 0);
-                    graphics.Save();
-                }
+                graphics.Clear(Color.Transparent);
+                graphics.CompositingQuality = CompositingQuality.HighQuality;
+                graphics.SmoothingMode = SmoothingMode.HighQuality;
+                graphics.TextRenderingHint = TextRenderingHint.SystemDefault;
+                graphics.DrawString(text, font, brush, 0, 0);
+                graphics.Save();
             }
 
             return image;
@@ -98,7 +99,9 @@ namespace percentage
         {
             using (Image image = new Bitmap(1, 1))
             using (Graphics graphics = Graphics.FromImage(image))
+            {
                 return graphics.MeasureString(text, font);
+            }
         }
     }
 }
