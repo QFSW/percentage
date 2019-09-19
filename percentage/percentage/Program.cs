@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace percentage
+namespace Percentage
 {
     static class Program
     {
@@ -14,9 +14,10 @@ namespace percentage
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            TrayIcon trayIcon = new TrayIcon();
-
-            Application.Run();
+            using (TrayIcon trayIcon = new TrayIcon())
+            {
+                Application.Run();
+            }
         }
     }
 }

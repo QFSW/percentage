@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace percentage.Properties
+namespace Percentage.Properties
 {
 
 

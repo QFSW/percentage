@@ -2,28 +2,21 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
-using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
-namespace percentage
+namespace Percentage
 {
-    class TrayIcon
+    class TrayIcon : IDisposable
     {
-        [DllImport("user32.dll", CharSet = CharSet.Auto)]
-        static extern bool DestroyIcon(IntPtr handle);
+        private const string _iconFont = "Tahoma";
 
-        private const string _iconFont = "Segoe UI";
-        private const int _iconFontSize = 28;
-
-        private string _batteryPercentage;
-        private NotifyIcon _notifyIcon;
+        private readonly NotifyIcon _percentageIcon = new NotifyIcon();
+        private readonly Timer _timer = new Timer();
 
         public TrayIcon()
         {
             ContextMenu contextMenu = new ContextMenu();
             MenuItem menuItem = new MenuItem();
-
-            _notifyIcon = new NotifyIcon();
 
             // initialize contextMenu
             contextMenu.MenuItems.AddRange(new MenuItem[] { menuItem });
@@ -31,77 +24,79 @@ namespace percentage
             // initialize menuItem
             menuItem.Index = 0;
             menuItem.Text = "E&xit";
-            menuItem.Click += new System.EventHandler(menuItem_Click);
+            menuItem.Click += new EventHandler(MenuItemClick);
 
-            _notifyIcon.ContextMenu = contextMenu;
+            _percentageIcon.ContextMenu = contextMenu;
+            _percentageIcon.Visible = true;
 
-            _batteryPercentage = "?";
-
-            _notifyIcon.Visible = true;
-
-            Timer timer = new Timer();
-            timer.Tick += new EventHandler(timer_Tick);
-            timer.Interval = 1000; // in miliseconds
-            timer.Start();
+            _timer.Tick += new EventHandler(TimerTick);
+            _timer.Interval = 500;
+            _timer.Start();
         }
 
-        private void timer_Tick(object sender, EventArgs e)
+        private void TimerTick(object sender, EventArgs e)
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
-            _batteryPercentage = $"{(int)(powerStatus.BatteryLifePercent * 100)}";
+            int battery = (int)(powerStatus.BatteryLifePercent * 100);
+            string batteryText = battery.ToString();
 
-            using (Font font = new Font(_iconFont, _iconFontSize))
-            using (Bitmap bitmap = new Bitmap(DrawText(_batteryPercentage, font)))
+            int iconFontSize;
+            Point point;
+            if (battery == 100)
+            {
+                iconFontSize = 11;
+                point = new Point(-4, 1);
+            }
+            else if (battery >= 10)
+            {
+                iconFontSize = 14;
+                point = new Point(-2, -1);
+            }
+            else
+            {
+                iconFontSize = 14;
+                point = new Point(1, -1);
+            }
+
+            using (Font font = new Font(_iconFont, iconFontSize, GraphicsUnit.Pixel))
+            using (Bitmap bitmap = new Bitmap(DrawText(batteryText, font, point)))
             {
                 IntPtr intPtr = bitmap.GetHicon();
-                try
+                using (Icon icon = Icon.FromHandle(intPtr))
                 {
-                    using (Icon icon = Icon.FromHandle(intPtr))
-                    {
-                        _notifyIcon.Icon = icon;
-                        _notifyIcon.Text = _batteryPercentage;
-                    }
-                }
-                finally
-                {
-                    DestroyIcon(intPtr);
+                    _percentageIcon.Icon = icon;
+                    _percentageIcon.Text = $"{battery}%";
                 }
             }
         }
 
-        private void menuItem_Click(object sender, EventArgs e)
+        private void MenuItemClick(object sender, EventArgs e)
         {
-            _notifyIcon.Visible = false;
-            _notifyIcon.Dispose();
+            _percentageIcon.Visible = false;
             Application.Exit();
         }
 
-        private Image DrawText(string text, Font font)
+        private Image DrawText(string text, Font font, Point point)
         {
-            SizeF textSize = GetImageSize(text, font);
-            Image image = new Bitmap((int) textSize.Width, (int) textSize.Height);
+            Image image = new Bitmap(16, 16);
             using (Brush brush = new SolidBrush(Color.White))
             using (Graphics graphics = Graphics.FromImage(image))
             {
-                // paint the background
                 graphics.Clear(Color.Transparent);
                 graphics.CompositingQuality = CompositingQuality.HighQuality;
                 graphics.SmoothingMode = SmoothingMode.HighQuality;
                 graphics.TextRenderingHint = TextRenderingHint.SystemDefault;
-                graphics.DrawString(text, font, brush, 0, 0);
+                graphics.DrawString(text, font, brush, point);
                 graphics.Save();
             }
 
             return image;
         }
 
-        private static SizeF GetImageSize(string text, Font font)
+        public void Dispose()
         {
-            using (Image image = new Bitmap(1, 1))
-            using (Graphics graphics = Graphics.FromImage(image))
-            {
-                return graphics.MeasureString(text, font);
-            }
+            _percentageIcon.Dispose();
+            _timer.Dispose();
         }
     }
 }
