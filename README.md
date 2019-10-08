@@ -1,3 +1,5 @@
+Same as the original but looks a million times better (at least on 1080p 100% scaling)
+
 # percentage
 
 ![](https://raw.githubusercontent.com/kas/percentage/master/percentage.png)
