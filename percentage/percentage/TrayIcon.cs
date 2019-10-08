@@ -10,62 +10,81 @@ namespace Percentage
     {
         private const string _iconFont = "Tahoma";
 
-        private readonly NotifyIcon _percentageIcon = new NotifyIcon();
+        private int _lastBattery = -1;
+
+        private NotifyIcon _percentageIcon = new NotifyIcon();
+
+        private readonly ContextMenu _contextMenu = new ContextMenu();
         private readonly Timer _timer = new Timer();
 
         public TrayIcon()
         {
-            ContextMenu contextMenu = new ContextMenu();
             MenuItem menuItem = new MenuItem();
 
             // initialize contextMenu
-            contextMenu.MenuItems.AddRange(new MenuItem[] { menuItem });
+            _contextMenu.MenuItems.AddRange(new MenuItem[] { menuItem });
 
             // initialize menuItem
             menuItem.Index = 0;
             menuItem.Text = "E&xit";
             menuItem.Click += new EventHandler(MenuItemClick);
 
-            _percentageIcon.ContextMenu = contextMenu;
+            _percentageIcon.ContextMenu = _contextMenu;
             _percentageIcon.Visible = true;
 
-            _timer.Tick += new EventHandler(TimerTick);
-            _timer.Interval = 500;
+            _timer.Tick += new EventHandler(UpdateIcon);
+            _timer.Interval = 1000;
             _timer.Start();
         }
 
-        private void TimerTick(object sender, EventArgs e)
+        private void UpdateIcon(object sender, EventArgs ev)
         {
             PowerStatus powerStatus = SystemInformation.PowerStatus;
             int battery = (int)(powerStatus.BatteryLifePercent * 100);
-            string batteryText = battery.ToString();
+            if (battery != _lastBattery)
+            {
+                _lastBattery = battery;
+                string batteryText = battery.ToString();
 
-            int iconFontSize;
-            Point point;
-            if (battery == 100)
-            {
-                iconFontSize = 11;
-                point = new Point(-4, 1);
-            }
-            else if (battery >= 10)
-            {
-                iconFontSize = 14;
-                point = new Point(-2, -1);
-            }
-            else
-            {
-                iconFontSize = 14;
-                point = new Point(1, -1);
-            }
-
-            using (Font font = new Font(_iconFont, iconFontSize, GraphicsUnit.Pixel))
-            using (Bitmap bitmap = new Bitmap(DrawText(batteryText, font, point)))
-            {
-                IntPtr intPtr = bitmap.GetHicon();
-                using (Icon icon = Icon.FromHandle(intPtr))
+                int iconFontSize;
+                Point point;
+                if (battery == 100)
                 {
+                    iconFontSize = 11;
+                    point = new Point(-4, 1);
+                }
+                else if (battery >= 10)
+                {
+                    iconFontSize = 14;
+                    point = new Point(-2, -1);
+                }
+                else
+                {
+                    iconFontSize = 14;
+                    point = new Point(1, -1);
+                }
+
+                try
+                {
+                    using Font font = new Font(_iconFont, iconFontSize, GraphicsUnit.Pixel);
+                    using Bitmap bitmap = new Bitmap(DrawText(batteryText, font, point));
+
+                    IntPtr intPtr = bitmap.GetHicon();
+
+                    using Icon icon = Icon.FromHandle(intPtr);
+
                     _percentageIcon.Icon = icon;
                     _percentageIcon.Text = $"{battery}%";
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+
+                    _percentageIcon.Dispose();
+
+                    _percentageIcon = new NotifyIcon();
+                    _percentageIcon.ContextMenu = _contextMenu;
+                    _percentageIcon.Visible = true;
                 }
             }
         }
@@ -97,6 +116,7 @@ namespace Percentage
         {
             _percentageIcon.Dispose();
             _timer.Dispose();
+            _contextMenu.Dispose();
         }
     }
 }
